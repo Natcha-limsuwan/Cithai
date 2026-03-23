@@ -9,7 +9,7 @@ Django backend implementing the domain model from Exercise 2.
 ### 1. Clone & install dependencies
 
 ```bash
-git clone <your-repo-url>
+git clone <https://github.com/Natcha-limsuwan/Cithai.git>
 cd cithai
 pip install django djangorestframework
 ```
@@ -118,6 +118,12 @@ cithai/
 ├── manage.py
 ├── README.md
 ├── db.sqlite3              # SQLite database (dev only)
+├── CRUD/
+│    ├── api:musicgenerationrequest.png
+│    ├── api:shares.png
+│    ├── api:songs:1.png
+│    ├── api:songs.png
+│    └── api:users.png
 ├── cithai/
 │   ├── settings.py
 │   └── urls.py
