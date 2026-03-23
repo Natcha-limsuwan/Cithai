@@ -10,7 +10,7 @@ Django backend implementing the domain model from Exercise 2.
 
 ```bash
 git clone <https://github.com/Natcha-limsuwan/Cithai.git>
-cd cithai
+cd Cithai
 pip install django djangorestframework
 ```
 
