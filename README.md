@@ -68,8 +68,6 @@ Open http://127.0.0.1:8000/
 | `/api/shares/` | ShareLink CRUD |
 
 
-- View CRUD screenshots: [CRUD folder](./CRUD/)
-
 ---
 
 ## Domain Entities
@@ -149,3 +147,7 @@ cithai/
 ├── requirements.txt
 └── .gitignore
 ```
+
+
+### View CRUD screenshots: 
+## [CRUD folder](./CRUD/)
