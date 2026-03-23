@@ -67,6 +67,9 @@ Open http://127.0.0.1:8000/
 | `/api/requests/` | MusicGenerationRequest CRUD |
 | `/api/shares/` | ShareLink CRUD |
 
+
+- View CRUD screenshots: [CRUD folder](./CRUD/)
+
 ---
 
 ## Domain Entities
