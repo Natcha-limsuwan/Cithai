@@ -1,7 +1,5 @@
 # Cithai — AI Music Generation Platform
-
-Django backend implementing the domain model from Exercise 2.
-
+The AI Music Generator is a web-based application that lets users create original music from text descriptions using artificial intelligence.
 ---
 
 ## Quick Start
@@ -14,31 +12,44 @@ cd Cithai
 pip install django djangorestframework
 ```
 
-### 2. Apply migrations
+### 2. Create and activate virtual environment
 
 ```bash
-python manage.py migrate
+python3 -m venv venv
+source venv/bin/activate
 ```
 
-### 3. Seed demo data
+### 3. Install dependencies
 
 ```bash
-python manage.py seed_data
+pip install -r requirements.txt
 ```
 
-### 4. Create an admin superuser
+### 4. Apply migrations
 
 ```bash
-python manage.py createsuperuser
+python3 manage.py migrate
+```
+
+### 5. Seed demo data
+
+```bash
+python3 manage.py seed_data
+```
+
+### 6. Create an admin superuser
+
+```bash
+python3 manage.py createsuperuser
 ```
 
 When prompted for a password you can leave it blank (Google OAuth is used in
 production — no passwords are stored).
 
-### 5. Run the development server
+### 7. Run the development server
 
 ```bash
-python manage.py runserver
+python3 manage.py runserver
 ```
 
 Open http://127.0.0.1:8000/
@@ -125,12 +136,6 @@ cithai/
 │    └── management/
 │        └── commands/
 │            └── seed_data.py
-├── CRUD/
-│    ├── api:musicgenerationrequest.png
-│    ├── api:shares.png
-│    ├── api:songs:1.png
-│    ├── api:songs.png
-│    └── api:users.png
 ├── cithai/
 │   ├── settings.py
 │   └── urls.py
