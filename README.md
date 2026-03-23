@@ -115,9 +115,16 @@ curl -X DELETE http://127.0.0.1:8000/api/songs/1/
 
 ```
 cithai/
-├── manage.py
-├── README.md
-├── db.sqlite3              # SQLite database (dev only)
+└── core/
+│    ├── models.py           # Domain entities + enumerations
+│    ├── serializers.py      # DRF serializers with constraint validation
+│    ├── views.py            # ModelViewSet CRUD endpoints
+│    ├── admin.py            # Django Admin registration
+│    ├── migrations/
+│    │   └── 0001_initial.py
+│    └── management/
+│        └── commands/
+│            └── seed_data.py
 ├── CRUD/
 │    ├── api:musicgenerationrequest.png
 │    ├── api:shares.png
@@ -127,14 +134,10 @@ cithai/
 ├── cithai/
 │   ├── settings.py
 │   └── urls.py
-└── core/
-    ├── models.py           # Domain entities + enumerations
-    ├── serializers.py      # DRF serializers with constraint validation
-    ├── views.py            # ModelViewSet CRUD endpoints
-    ├── admin.py            # Django Admin registration
-    ├── migrations/
-    │   └── 0001_initial.py
-    └── management/
-        └── commands/
-            └── seed_data.py
+├── manage.py
+├── README.md
+├── db.sqlite3              # SQLite database (dev only)
+├── DomainModeling.png
+├── requirements.txt
+└── .gitignore
 ```
