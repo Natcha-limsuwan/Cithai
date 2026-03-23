@@ -7,7 +7,7 @@ The AI Music Generator is a web-based application that lets users create origina
 ### 1. Clone & install dependencies
 
 ```bash
-git clone <https://github.com/Natcha-limsuwan/Cithai.git>
+git clone https://github.com/Natcha-limsuwan/Cithai.git
 cd Cithai
 pip install django djangorestframework
 ```
