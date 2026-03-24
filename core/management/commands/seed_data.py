@@ -14,11 +14,19 @@ class Command(BaseCommand):
         # Users
         u1, _ = User.objects.get_or_create(
             email="alice@example.com",
-            defaults={"google_id": "google_alice_001", "name": "Alice"},
+            defaults={
+                "google_id": "google_alice_001",
+                "name": "Alice",
+                "username": "alice",
+            },
         )
         u2, _ = User.objects.get_or_create(
             email="bob@example.com",
-            defaults={"google_id": "google_bob_002", "name": "Bob"},
+            defaults={
+                "google_id": "google_bob_002",
+                "name": "Bob",
+                "username": "bob",
+            },
         )
         self.stdout.write(f"Users: {u1}, {u2}")
 
