@@ -89,12 +89,21 @@ celerybeat-schedule
 
 # Environments
 .env
+.env.*
+*.env
 .venv
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Local secrets / private config
+secrets.*
+*.secret
+*.secrets
+local.env
+local.settings.py
 
 # Spyder project settings
 .spyderproject
