@@ -635,16 +635,3 @@ HTTP/1.1 200 OK
 
 This confirms that the app can retrieve status/details for a previously submitted Suno generation request. The polling code path is implemented in `core/services/music_generation/suno_strategy.py`.
 
-### Submission Checklist
-
-This repository includes all required Exercise 4 deliverables:
-
-- Strategy interface with `generate(request) -> result`
-- `Mock` strategy for deterministic offline generation
-- `Suno` strategy that calls the external Suno API
-- Centralized strategy selection via `GENERATOR_STRATEGY=mock|suno`
-- README instructions for mock mode and Suno mode
-- Clear guidance that `SUNO_API_KEY` must stay in environment variables and must not be committed
-- Evidence that mock generation works
-- Evidence that Suno generation creates and stores a real `taskId`
-- Evidence that the app can poll and refresh a Suno generation request
