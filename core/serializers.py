@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Song, MusicGenerationRequest, ShareLink, GenerationStatus
+from .models import User, Song, MusicGenerationRequest, ShareLink, GenerationStatus, Library
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -14,7 +14,7 @@ class SongSerializer(serializers.ModelSerializer):
         model  = Song
         fields = [
             "song_id", "user", "title", "custom_lyrics", "duration",
-            "creation_date", "is_shared", "status",
+            "audio_url", "creation_date", "is_shared", "status",
             "mood", "genre", "occasion", "voice_type",
         ]
         read_only_fields = ["song_id", "creation_date"]
@@ -37,8 +37,16 @@ class MusicGenerationRequestSerializer(serializers.ModelSerializer):
         fields = [
             "request_id", "user", "song", "title", "custom_lyrics",
             "occasion", "genre", "voice_type", "mood", "submitted_at", "is_retry",
+            "generation_provider", "provider_task_id", "provider_status_message",
         ]
-        read_only_fields = ["request_id", "submitted_at"]
+        read_only_fields = [
+            "request_id",
+            "submitted_at",
+            "song",
+            "generation_provider",
+            "provider_task_id",
+            "provider_status_message",
+        ]
 
 
 class ShareLinkSerializer(serializers.ModelSerializer):
@@ -54,3 +62,15 @@ class ShareLinkSerializer(serializers.ModelSerializer):
                 "A ShareLink can only be created for a song with status 'Complete' (C-4)."
             )
         return song
+
+
+class LibrarySerializer(serializers.ModelSerializer):
+    song_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = Library
+        fields = ["library_id", "user", "name", "description", "songs", "song_count", "created_at"]
+        read_only_fields = ["library_id", "created_at"]
+
+    def get_song_count(self, obj):
+        return obj.songs.count()

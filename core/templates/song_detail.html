@@ -1,0 +1,343 @@
+{% extends "base.html" %}
+{% block title %}Song Detail – Cithai{% endblock %}
+
+{% block body %}
+<nav class="nav">
+  <a href="/library/" class="nav-logo"><span>🎵</span> Cithai</a>
+  <div class="nav-actions">
+    <a href="/libraries/" class="btn btn-ghost btn-sm">Libraries</a>
+    <span class="nav-user" id="nav-user-name">…</span>
+    <a href="/library/" class="btn btn-ghost btn-sm">← Songs</a>
+  </div>
+</nav>
+
+<div class="page-container" style="max-width:760px;">
+  <a href="/library/" class="back-link">← Back to Library</a>
+
+  <div id="detail-container">
+    <div class="loading-overlay">
+      <span class="loading-spinner" style="border-color:rgba(70,130,180,.3);border-top-color:var(--primary);"></span>
+      Loading song…
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  if (!auth.require()) { /* redirected */ }
+  document.getElementById('nav-user-name').textContent = auth.user?.name || '';
+
+  const SONG_ID = parseInt('{{ song_id }}');
+
+  let songData    = null;
+  let shareData   = null;
+  let requestData = null;
+  let isPlaying   = false;
+  let position    = 0;   // seconds elapsed
+  let refreshTimer = null;
+
+  async function loadDetail() {
+    try {
+      const [songs, requests, shares] = await Promise.all([
+        api.songs.list(),
+        api.requests.list(),
+        api.shares.list(),
+      ]);
+
+      songData    = songs.find(s => s.song_id === SONG_ID);
+      if (!songData) { location.href = '/library/'; return; }
+      requestData = requests.find(r => r.song === SONG_ID);
+      shareData   = shares.find(s => s.song  === SONG_ID);
+
+      render();
+    } catch (err) {
+      document.getElementById('detail-container').innerHTML =
+        `<div class="alert alert-error show">Error loading song: ${escHtml(err.message)}</div>`;
+    }
+  }
+
+  function render() {
+    const isComplete   = songData.status === 'Complete';
+    const isFailed     = songData.status === 'Failed';
+    const isProcessing = ['Processing', 'Pending'].includes(songData.status);
+
+    document.getElementById('detail-container').innerHTML = `
+      <!-- HEADER -->
+      <div class="song-detail-header">
+        <div>
+          <div class="song-detail-title">${escHtml(songData.title)}</div>
+          <div class="song-detail-date">Created ${formatDate(songData.creation_date)}</div>
+        </div>
+        <div>${statusBadge(songData.status)}</div>
+      </div>
+
+      <!-- PROCESSING STATE -->
+      ${isProcessing ? `
+      <div class="processing-card">
+        <div class="processing-icon">🎵</div>
+        <div class="processing-text">Composing your song…</div>
+        <div class="processing-sub">This may take up to 10 minutes. The page will auto-update.</div>
+        <button class="btn btn-secondary btn-sm" style="margin-top:1rem;" onclick="refreshStatus()">↻ Check Status</button>
+      </div>` : ''}
+
+      <!-- FAILED STATE -->
+      ${isFailed ? `
+      <div class="section" style="border-left:4px solid var(--danger);">
+        <div class="section-title" style="color:var(--danger);">⚠️ Generation Failed</div>
+        <p style="font-size:.875rem;color:var(--text-mid);margin-bottom:1rem;">
+          The AI was unable to generate this song. You can retry using the same details.
+          ${requestData ? `<br><small style="color:var(--text-light);">Provider: ${escHtml(requestData.provider_status_message||'')}</small>` : ''}
+        </p>
+        ${requestData ? `<button class="btn btn-primary" onclick="retryGeneration(${requestData.request_id})">↻ Retry Generation</button>` : ''}
+      </div>` : ''}
+
+      <!-- AUDIO PLAYER (Complete only) -->
+      ${isComplete ? `
+      <div class="player-card">
+        ${songData.audio_url
+          ? `<audio id="audio-el" src="${songData.audio_url}" preload="metadata"></audio>`
+          : ''}
+        <div class="player-now-playing">🎵 NOW PLAYING — ${escHtml(songData.title)}</div>
+        <div class="player-seek-row">
+          <span class="player-time" id="current-time">0:00</span>
+          <input type="range" id="seek-slider" class="seek-slider"
+                 min="0" max="${songData.duration || 180}" value="0" step="1"
+                 oninput="onSeek(this.value)">
+          <span class="player-time" id="total-time">${formatDuration(songData.duration)}</span>
+        </div>
+        <div class="player-controls">
+          <button class="player-btn player-btn-sm" onclick="restartPlayer()" title="Restart">↩</button>
+          <button class="player-btn player-btn-sm" onclick="skip(-10)" title="Back 10s">-10s</button>
+          <button id="play-btn" class="player-btn player-btn-main" onclick="togglePlay()">▶</button>
+          <button class="player-btn player-btn-sm" onclick="skip(10)" title="Forward 10s">+10s</button>
+        </div>
+        ${!songData.audio_url ? '<div style="text-align:center;font-size:.75rem;opacity:.65;margin-top:.5rem;">No audio file available for this song</div>' : ''}
+      </div>` : ''}
+
+      <!-- METADATA -->
+      <div class="section">
+        <div class="section-title">📋 Song Details</div>
+        <div class="meta-grid">
+          <div class="meta-item"><div class="meta-label">Mood</div><div class="meta-value">${escHtml(songData.mood)}</div></div>
+          <div class="meta-item"><div class="meta-label">Genre</div><div class="meta-value">${escHtml(songData.genre)}</div></div>
+          <div class="meta-item"><div class="meta-label">Occasion</div><div class="meta-value">${escHtml(songData.occasion)}</div></div>
+          <div class="meta-item"><div class="meta-label">Voice Type</div><div class="meta-value">${escHtml(songData.voice_type)}</div></div>
+          <div class="meta-item"><div class="meta-label">Duration</div><div class="meta-value">${formatDuration(songData.duration)}</div></div>
+          <div class="meta-item"><div class="meta-label">Status</div><div class="meta-value">${escHtml(songData.status)}</div></div>
+        </div>
+        ${songData.custom_lyrics ? `
+        <div style="margin-top:1rem;">
+          <div class="meta-label" style="margin-bottom:.4rem;">Custom Lyrics</div>
+          <div style="background:#f4f8fb;border-radius:8px;padding:.85rem;font-size:.875rem;color:var(--text-mid);white-space:pre-wrap;border:1px solid var(--border);">${escHtml(songData.custom_lyrics)}</div>
+        </div>` : ''}
+      </div>
+
+      <!-- SHARE SECTION (Complete only) -->
+      ${isComplete ? `
+      <div class="section">
+        <div class="section-title">🔗 Share This Song</div>
+        <div class="share-card">
+          <div class="share-toggle-row">
+            <label class="toggle">
+              <input type="checkbox" id="share-toggle" ${shareData?.is_active ? 'checked' : ''} onchange="toggleShare(this.checked)">
+              <span class="toggle-slider"></span>
+            </label>
+            <span class="share-toggle-label" id="share-toggle-label">${shareData?.is_active ? 'Sharing enabled — anyone with the link can view' : 'Sharing disabled'}</span>
+          </div>
+          <div id="share-url-row" class="share-url-row" style="display:${shareData?.is_active ? 'flex' : 'none'};">
+            <input type="text" id="share-url-input" class="share-url-input" readonly value="${shareData ? location.origin + '/shared/' + shareData.token + '/' : ''}">
+            <button class="btn btn-secondary btn-sm" onclick="copyShareLink()">Copy</button>
+          </div>
+        </div>
+      </div>` : ''}
+
+      <!-- GENERATION INFO -->
+      ${requestData ? `
+      <div class="section">
+        <div class="section-title">⚙️ Generation Info</div>
+        <div class="meta-grid">
+          <div class="meta-item"><div class="meta-label">Provider</div><div class="meta-value">${escHtml(requestData.generation_provider)}</div></div>
+          <div class="meta-item"><div class="meta-label">Submitted</div><div class="meta-value">${formatDate(requestData.submitted_at)}</div></div>
+          <div class="meta-item"><div class="meta-label">Is Retry</div><div class="meta-value">${requestData.is_retry ? 'Yes' : 'No'}</div></div>
+        </div>
+      </div>` : ''}
+
+      <!-- DELETE -->
+      <div style="display:flex;justify-content:flex-end;padding-bottom:2rem;">
+        <button class="btn btn-danger" onclick="deleteSong()">🗑 Delete Song</button>
+      </div>
+    `;
+
+    // Wire up real audio element after DOM is written
+    isPlaying = false;
+    position  = 0;
+    initAudioListeners();
+
+    // Auto-refresh if processing
+    clearTimeout(refreshTimer);
+    if (isProcessing) refreshTimer = setTimeout(refreshStatus, 6000);
+  }
+
+  async function refreshStatus() {
+    if (!requestData) return;
+    try {
+      requestData = await api.requests.refresh(requestData.request_id);
+      const songs = await api.songs.list();
+      songData = songs.find(s => s.song_id === SONG_ID);
+      if (songData) render();
+    } catch (err) {
+      showToast('Refresh failed: ' + err.message, 'error');
+    }
+  }
+
+  async function retryGeneration(reqId) {
+    try {
+      requestData = await api.requests.refresh(reqId);
+      const songs = await api.songs.list();
+      songData = songs.find(s => s.song_id === SONG_ID);
+      if (songData) render();
+      showToast('Retry started!', 'info');
+    } catch (err) {
+      showToast('Retry failed: ' + err.message, 'error');
+    }
+  }
+
+  async function toggleShare(checked) {
+    try {
+      if (checked) {
+        if (!shareData) {
+          shareData = await api.shares.create({ song: SONG_ID, is_active: true });
+        } else {
+          shareData = await api.shares.update(shareData.link_id, { is_active: true });
+        }
+      } else {
+        if (shareData) {
+          shareData = await api.shares.update(shareData.link_id, { is_active: false });
+        }
+      }
+      // Update the share UI without full re-render
+      document.getElementById('share-toggle-label').textContent =
+        checked ? 'Sharing enabled — anyone with the link can view' : 'Sharing disabled';
+      const urlRow = document.getElementById('share-url-row');
+      urlRow.style.display = checked ? 'flex' : 'none';
+      if (checked && shareData) {
+        document.getElementById('share-url-input').value = location.origin + '/shared/' + shareData.token + '/';
+      }
+      showToast(checked ? 'Sharing enabled' : 'Sharing disabled', 'success');
+    } catch (err) {
+      showToast('Error: ' + err.message, 'error');
+      // Revert toggle
+      document.getElementById('share-toggle').checked = !checked;
+    }
+  }
+
+  function copyShareLink() {
+    const input = document.getElementById('share-url-input');
+    navigator.clipboard.writeText(input.value)
+      .then(() => showToast('Link copied!', 'success'))
+      .catch(() => { input.select(); document.execCommand('copy'); showToast('Link copied!', 'success'); });
+  }
+
+  async function deleteSong() {
+    if (!confirm('Delete this song permanently? This cannot be undone.')) return;
+    try {
+      await api.songs.delete(SONG_ID);
+      showToast('Song deleted', 'success');
+      location.href = '/library/';
+    } catch (err) {
+      showToast('Delete failed: ' + err.message, 'error');
+    }
+  }
+
+  // ── Audio Player ──────────────────────────────────────────────
+  function audio() { return document.getElementById('audio-el'); }
+  function playerTotal() {
+    const a = audio();
+    return (a && a.duration && isFinite(a.duration)) ? a.duration : (songData?.duration || 180);
+  }
+
+  function updateSlider(secs) {
+    const slider = document.getElementById('seek-slider');
+    const timeEl = document.getElementById('current-time');
+    const total  = playerTotal();
+    if (slider) {
+      slider.max   = total;
+      slider.value = secs;
+      slider.style.setProperty('--fill', total > 0 ? (secs / total * 100).toFixed(2) + '%' : '0%');
+    }
+    if (timeEl) timeEl.textContent = formatDuration(Math.floor(secs));
+  }
+
+  function initAudioListeners() {
+    const a = audio();
+    if (!a) return;
+    a.addEventListener('timeupdate', () => {
+      if (!isPlaying) return;
+      position = a.currentTime;
+      updateSlider(position);
+    });
+    a.addEventListener('loadedmetadata', () => {
+      const totalEl = document.getElementById('total-time');
+      if (totalEl) totalEl.textContent = formatDuration(Math.floor(a.duration));
+      updateSlider(0);
+    });
+    a.addEventListener('ended', () => {
+      isPlaying = false;
+      const btn = document.getElementById('play-btn');
+      if (btn) btn.textContent = '▶';
+      position = 0;
+      updateSlider(0);
+    });
+  }
+
+  function onSeek(val) {
+    position = parseFloat(val);
+    updateSlider(position);
+    const a = audio();
+    if (a) a.currentTime = position;
+  }
+
+  function skip(secs) {
+    const total = playerTotal();
+    position = Math.max(0, Math.min(position + secs, total));
+    updateSlider(position);
+    const a = audio();
+    if (a) a.currentTime = position;
+  }
+
+  function restartPlayer() {
+    isPlaying = false;
+    position = 0;
+    const btn = document.getElementById('play-btn');
+    if (btn) btn.textContent = '▶';
+    updateSlider(0);
+    const a = audio();
+    if (a) { a.pause(); a.currentTime = 0; }
+  }
+
+  function togglePlay() {
+    const a = audio();
+    const btn = document.getElementById('play-btn');
+    if (!btn) return;
+    if (!a) {
+      showToast('No audio available for this song', 'error');
+      return;
+    }
+    isPlaying = !isPlaying;
+    btn.textContent = isPlaying ? '⏸' : '▶';
+    if (isPlaying) {
+      a.currentTime = position;
+      a.play().catch(err => {
+        showToast('Playback error: ' + err.message, 'error');
+        isPlaying = false;
+        btn.textContent = '▶';
+      });
+    } else {
+      a.pause();
+    }
+  }
+
+  loadDetail();
+</script>
+{% endblock %}

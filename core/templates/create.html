@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}Create Song – Cithai{% endblock %}
+
+{% block body %}
+<nav class="nav">
+  <a href="/library/" class="nav-logo"><span>🎵</span> Cithai</a>
+  <div class="nav-actions">
+    <a href="/libraries/" class="btn btn-ghost btn-sm">Libraries</a>
+    <span class="nav-user" id="nav-user-name">…</span>
+    <a href="/library/" class="btn btn-ghost btn-sm">← Songs</a>
+  </div>
+</nav>
+
+<div class="page-container" style="max-width:720px;">
+  <a href="/library/" class="back-link">← Back to Library</a>
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Create New Song</h1>
+      <p class="page-subtitle">Fill in the details and our AI will compose your song</p>
+    </div>
+  </div>
+
+  <div id="error-alert" class="alert alert-error"></div>
+
+  <form id="create-form" onsubmit="handleCreate(event)">
+    <!-- TITLE -->
+    <div class="section">
+      <div class="section-title">✏️ Song Details</div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label" for="title">Song Title <span style="color:var(--danger)">*</span></label>
+        <input id="title" type="text" class="form-control" placeholder="e.g. Happy Birthday to Sarah" maxlength="255" required>
+      </div>
+    </div>
+
+    <!-- MOOD -->
+    <div class="section">
+      <div class="section-title">😊 Mood <span style="color:var(--danger);font-size:.75rem;">required</span></div>
+      <div class="option-group" data-group="mood" id="mood-group">
+        <button type="button" class="option-btn" data-value="Happy"    onclick="selectOpt('mood','Happy')">😊 Happy</button>
+        <button type="button" class="option-btn" data-value="Sad"      onclick="selectOpt('mood','Sad')">😢 Sad</button>
+        <button type="button" class="option-btn" data-value="Romantic" onclick="selectOpt('mood','Romantic')">💕 Romantic</button>
+        <button type="button" class="option-btn" data-value="Energetic" onclick="selectOpt('mood','Energetic')">⚡ Energetic</button>
+        <button type="button" class="option-btn" data-value="Calm"     onclick="selectOpt('mood','Calm')">🌊 Calm</button>
+      </div>
+    </div>
+
+    <!-- GENRE -->
+    <div class="section">
+      <div class="section-title">🎸 Genre <span style="color:var(--danger);font-size:.75rem;">required</span></div>
+      <div class="option-group" data-group="genre" id="genre-group">
+        <button type="button" class="option-btn" data-value="Pop"       onclick="selectOpt('genre','Pop')">🎵 Pop</button>
+        <button type="button" class="option-btn" data-value="Rock"      onclick="selectOpt('genre','Rock')">🎸 Rock</button>
+        <button type="button" class="option-btn" data-value="Jazz"      onclick="selectOpt('genre','Jazz')">🎷 Jazz</button>
+        <button type="button" class="option-btn" data-value="Classical" onclick="selectOpt('genre','Classical')">🎻 Classical</button>
+        <button type="button" class="option-btn" data-value="HipHop"    onclick="selectOpt('genre','HipHop')">🎤 Hip-Hop</button>
+      </div>
+    </div>
+
+    <!-- OCCASION -->
+    <div class="section">
+      <div class="section-title">🎉 Occasion <span style="color:var(--danger);font-size:.75rem;">required</span></div>
+      <div class="option-group" data-group="occasion" id="occasion-group">
+        <button type="button" class="option-btn" data-value="Birthday"    onclick="selectOpt('occasion','Birthday')">🎂 Birthday</button>
+        <button type="button" class="option-btn" data-value="Wedding"     onclick="selectOpt('occasion','Wedding')">💍 Wedding</button>
+        <button type="button" class="option-btn" data-value="Graduation"  onclick="selectOpt('occasion','Graduation')">🎓 Graduation</button>
+        <button type="button" class="option-btn" data-value="Anniversary" onclick="selectOpt('occasion','Anniversary')">💝 Anniversary</button>
+        <button type="button" class="option-btn" data-value="Custom"      onclick="selectOpt('occasion','Custom')">✨ Custom</button>
+      </div>
+    </div>
+
+    <!-- VOICE TYPE -->
+    <div class="section">
+      <div class="section-title">🎤 Voice Type <span style="color:var(--danger);font-size:.75rem;">required</span></div>
+      <div class="option-group" data-group="voice_type" id="voice_type-group">
+        <button type="button" class="option-btn" data-value="Male"         onclick="selectOpt('voice_type','Male')">👨 Male</button>
+        <button type="button" class="option-btn" data-value="Female"       onclick="selectOpt('voice_type','Female')">👩 Female</button>
+        <button type="button" class="option-btn" data-value="Child"        onclick="selectOpt('voice_type','Child')">🧒 Child</button>
+        <button type="button" class="option-btn" data-value="Choir"        onclick="selectOpt('voice_type','Choir')">🎶 Choir</button>
+        <button type="button" class="option-btn" data-value="Instrumental" onclick="selectOpt('voice_type','Instrumental')">🎹 Instrumental</button>
+        <button type="button" class="option-btn" data-value="Duet"         onclick="selectOpt('voice_type','Duet')">👫 Duet</button>
+      </div>
+    </div>
+
+    <!-- CUSTOM LYRICS -->
+    <div class="section">
+      <div class="section-title">📝 Custom Lyrics <span style="color:var(--text-light);font-size:.75rem;font-weight:400;">(optional)</span></div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label" for="custom_lyrics">Add your own lyrics or notes for the AI</label>
+        <textarea id="custom_lyrics" class="form-control" rows="4" placeholder="Enter any specific lyrics or notes you'd like included…" maxlength="5000"></textarea>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:1rem;justify-content:flex-end;padding-bottom:2rem;">
+      <a href="/library/" class="btn btn-secondary btn-lg">Cancel</a>
+      <button type="submit" id="submit-btn" class="btn btn-primary btn-lg">🎵 Generate Song</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  if (!auth.require()) { /* redirected */ }
+  document.getElementById('nav-user-name').textContent = auth.user?.name || '';
+
+  const selections = { mood: null, genre: null, occasion: null, voice_type: null };
+
+  function selectOpt(group, value) {
+    selections[group] = value;
+    document.querySelectorAll(`#${group}-group .option-btn`).forEach(btn => {
+      btn.classList.toggle('selected', btn.dataset.value === value);
+    });
+  }
+
+  async function handleCreate(e) {
+    e.preventDefault();
+    const alertEl = document.getElementById('error-alert');
+    alertEl.className = 'alert alert-error';
+
+    const title = document.getElementById('title').value.trim();
+    if (!title)                 return showError('Please enter a song title.');
+    if (!selections.mood)       return showError('Please select a mood.');
+    if (!selections.genre)      return showError('Please select a genre.');
+    if (!selections.occasion)   return showError('Please select an occasion.');
+    if (!selections.voice_type) return showError('Please select a voice type.');
+
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loading-spinner"></span> Generating…';
+
+    try {
+      const lyrics = document.getElementById('custom_lyrics').value.trim();
+      await api.requests.create({
+        user:         auth.user.user_id,
+        title,
+        mood:         selections.mood,
+        genre:        selections.genre,
+        occasion:     selections.occasion,
+        voice_type:   selections.voice_type,
+        custom_lyrics: lyrics || null,
+      });
+      showToast('Song generation started!', 'success');
+      location.href = '/library/';
+    } catch (err) {
+      showError('Generation failed: ' + err.message);
+      btn.disabled = false;
+      btn.innerHTML = '🎵 Generate Song';
+    }
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('error-alert');
+    el.textContent = msg;
+    el.className = 'alert alert-error show';
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+</script>
+{% endblock %}

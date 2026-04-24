@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -64,6 +65,17 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+GENERATOR_STRATEGY = os.getenv(
+    "GENERATOR_STRATEGY",
+    os.getenv("MUSIC_GENERATION_PROVIDER", "mock"),
+).lower()
+# Backward-compatible alias for older code/docs in this repo.
+MUSIC_GENERATION_PROVIDER = GENERATOR_STRATEGY
+SUNO_API_KEY = os.getenv("SUNO_API_KEY", "")
+SUNO_API_BASE_URL = os.getenv("SUNO_API_BASE_URL", "https://api.sunoapi.org/api/v1")
+SUNO_CALLBACK_URL = os.getenv("SUNO_CALLBACK_URL", "https://example.com/api/suno/callback")
+SUNO_MODEL = os.getenv("SUNO_MODEL", "V4_5ALL")
 
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [

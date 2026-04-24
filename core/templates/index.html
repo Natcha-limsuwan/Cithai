@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Cithai – AI Music Composer{% endblock %}
+
+{% block body %}
+<div class="hero">
+  <div class="hero-logo">🎵</div>
+  <h1 class="hero-title">Cithai</h1>
+  <p class="hero-sub">Your personal AI music composer</p>
+
+  <div class="login-card">
+    <h2 class="login-card-title">Sign In / Get Started</h2>
+    <div id="alert" class="alert alert-error"></div>
+
+    <form id="login-form" onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label class="form-label" for="email">Email</label>
+        <input id="email" type="email" class="form-control" placeholder="you@example.com" required autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="name">Display Name</label>
+        <input id="name" type="text" class="form-control" placeholder="Your name" required autocomplete="name">
+      </div>
+      <button type="submit" id="login-btn" class="btn btn-primary btn-lg" style="width:100%;margin-top:0.5rem;">
+        Get Started →
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // If already logged in, skip to library
+  if (auth.user) location.href = '/library/';
+
+  async function handleLogin(e) {
+    e.preventDefault();
+    const email = document.getElementById('email').value.trim();
+    const name  = document.getElementById('name').value.trim();
+    const btn   = document.getElementById('login-btn');
+    const alertEl = document.getElementById('alert');
+
+    alertEl.className = 'alert alert-error';
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loading-spinner"></span> Loading…';
+
+    try {
+      const users = await api.users.list();
+      let user = users.find(u => u.email === email);
+
+      if (!user) {
+        const username = email.split('@')[0].replace(/[^a-z0-9_]/gi, '') + '_' + Date.now().toString().slice(-5);
+        user = await api.users.create({ email, name, username });
+      }
+
+      auth.user = user;
+      location.href = '/library/';
+    } catch (err) {
+      alertEl.textContent = 'Error: ' + err.message;
+      alertEl.classList.add('show');
+      btn.disabled = false;
+      btn.textContent = 'Get Started →';
+    }
+  }
+</script>
+{% endblock %}

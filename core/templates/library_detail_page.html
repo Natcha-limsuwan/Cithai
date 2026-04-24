@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block title %}Library Detail – Cithai{% endblock %}
+
+{% block body %}
+<nav class="nav">
+  <a href="/library/" class="nav-logo"><span>🎵</span> Cithai</a>
+  <div class="nav-actions">
+    <a href="/libraries/" class="btn btn-ghost btn-sm">Libraries</a>
+    <a href="/library/"   class="btn btn-ghost btn-sm">🎵 Songs</a>
+    <span class="nav-user" id="nav-user-name">…</span>
+    <button class="btn btn-ghost btn-sm" onclick="auth.logout()">Sign Out</button>
+  </div>
+</nav>
+
+<div class="page-container">
+  <a href="/libraries/" class="back-link">← Back to Libraries</a>
+  <div id="detail-container">
+    <div class="loading-overlay">
+      <span class="loading-spinner" style="border-color:rgba(70,130,180,.3);border-top-color:var(--primary);"></span>
+      Loading…
+    </div>
+  </div>
+</div>
+
+<!-- Add Songs Modal -->
+<div id="add-songs-modal" class="modal-overlay" onclick="closeAddModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">➕ Add Songs to Library</span>
+      <button class="modal-close" onclick="closeAddSongsModal()">✕</button>
+    </div>
+    <div class="modal-body" id="add-songs-list"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeAddSongsModal()">Close</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  if (!auth.require()) { /* redirected */ }
+  document.getElementById('nav-user-name').textContent = auth.user?.name || '';
+
+  const LIBRARY_ID = parseInt('{{ library_id }}');
+  let libData   = null;
+  let allSongs  = [];
+
+  async function loadDetail() {
+    try {
+      const [libs, songs] = await Promise.all([
+        api.libraries.list(),
+        api.songs.list(),
+      ]);
+      libData  = libs.find(l => l.library_id === LIBRARY_ID);
+      if (!libData) { location.href = '/libraries/'; return; }
+      allSongs = songs.filter(s => s.user === auth.user.user_id);
+      render();
+    } catch (err) {
+      document.getElementById('detail-container').innerHTML =
+        `<div class="alert alert-error show">${escHtml(err.message)}</div>`;
+    }
+  }
+
+  function render() {
+    const libSongs = allSongs.filter(s => (libData.songs || []).includes(s.song_id));
+
+    document.getElementById('detail-container').innerHTML = `
+      <!-- Header -->
+      <div class="song-detail-header" style="margin-bottom:1.25rem;">
+        <div style="flex:1;">
+          <div style="font-size:1.6rem;font-weight:800;">📁 ${escHtml(libData.name)}</div>
+          ${libData.description ? `<div style="font-size:.875rem;opacity:.8;margin-top:.3rem;">${escHtml(libData.description)}</div>` : ''}
+          <div style="font-size:.78rem;opacity:.65;margin-top:.35rem;">Created ${formatDate(libData.created_at)}</div>
+        </div>
+        <div style="display:flex;gap:.6rem;flex-wrap:wrap;">
+          <button class="btn btn-ghost btn-sm" onclick="openAddSongsModal()">➕ Add Songs</button>
+          <button class="btn btn-ghost btn-sm" onclick="openEditModal()">✏️ Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteLibrary()">🗑 Delete</button>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-bar" style="margin-bottom:1.25rem;">
+        <div class="stat-item">
+          <span class="stat-value">${libSongs.length}</span>
+          <span class="stat-label">Songs</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value">${libSongs.filter(s=>s.status==='Complete').length}</span>
+          <span class="stat-label">Complete</span>
+        </div>
+      </div>
+
+      <!-- Songs grid -->
+      ${libSongs.length === 0 ? `
+        <div class="empty-state">
+          <div class="empty-state-icon">🎵</div>
+          <div class="empty-state-title">No songs in this library</div>
+          <div class="empty-state-text">Click "Add Songs" to add songs from your collection</div>
+          <button class="btn btn-primary" onclick="openAddSongsModal()">➕ Add Songs</button>
+        </div>
+      ` : `
+        <div class="songs-grid">
+          ${libSongs.map(song => `
+            <div class="song-card" onclick="location.href='/songs/${song.song_id}/'">
+              <div class="song-card-top">
+                <div class="song-title">${escHtml(song.title)}</div>
+                ${statusBadge(song.status)}
+              </div>
+              <div class="song-tags">
+                <span class="tag tag-mood">${escHtml(song.mood)}</span>
+                <span class="tag tag-genre">${escHtml(song.genre)}</span>
+                <span class="tag tag-occasion">${escHtml(song.occasion)}</span>
+              </div>
+              <div class="song-meta">
+                <span>${formatDate(song.creation_date)}</span>
+                <span>${song.duration ? formatDuration(song.duration) : ''}</span>
+              </div>
+              <div class="song-actions">
+                <button class="btn btn-sm btn-secondary" onclick="removeSong(event,${song.song_id})">Remove</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `}
+    `;
+  }
+
+  async function removeSong(e, songId) {
+    e.stopPropagation();
+    try {
+      libData = await api.libraries.removeSong(LIBRARY_ID, songId);
+      showToast('Song removed from library', 'success');
+      render();
+    } catch (err) { showToast('Error: ' + err.message, 'error'); }
+  }
+
+  async function deleteLibrary() {
+    if (!confirm(`Delete "${libData.name}"? Songs won't be deleted.`)) return;
+    try {
+      await api.libraries.delete(LIBRARY_ID);
+      showToast('Library deleted', 'success');
+      location.href = '/libraries/';
+    } catch (err) { showToast('Error: ' + err.message, 'error'); }
+  }
+
+  // ── Add Songs Modal ────────────────────────────────────────────
+  function openAddSongsModal() {
+    const list = document.getElementById('add-songs-list');
+    const notInLib = allSongs.filter(s => !(libData.songs || []).includes(s.song_id));
+
+    if (notInLib.length === 0) {
+      list.innerHTML = `<div class="modal-empty">All your songs are already in this library.</div>`;
+    } else {
+      list.innerHTML = notInLib.map(song => `
+        <div class="library-check-item" onclick="addSong(${song.song_id})">
+          <div>
+            <div class="library-check-name">${escHtml(song.title)}</div>
+            <div style="font-size:.75rem;color:var(--text-light);">${escHtml(song.mood)} · ${escHtml(song.genre)}</div>
+          </div>
+          <span class="library-check-count">${statusBadge(song.status)}</span>
+        </div>
+      `).join('');
+    }
+    document.getElementById('add-songs-modal').classList.add('open');
+  }
+
+  function closeAddSongsModal() {
+    document.getElementById('add-songs-modal').classList.remove('open');
+  }
+  function closeAddModal(e) {
+    if (e.target === document.getElementById('add-songs-modal')) closeAddSongsModal();
+  }
+
+  async function addSong(songId) {
+    try {
+      libData = await api.libraries.addSong(LIBRARY_ID, songId);
+      showToast('Song added to library!', 'success');
+      closeAddSongsModal();
+      render();
+    } catch (err) { showToast('Error: ' + err.message, 'error'); }
+  }
+
+  // ── Edit Modal (inline prompt) ─────────────────────────────────
+  async function openEditModal() {
+    const name = prompt('Library name:', libData.name);
+    if (name === null) return;
+    const desc = prompt('Description (leave blank for none):', libData.description || '');
+    if (desc === null) return;
+    try {
+      libData = await api.libraries.update(LIBRARY_ID, {
+        name: name.trim() || libData.name,
+        description: desc.trim() || null,
+      });
+      showToast('Library updated', 'success');
+      render();
+    } catch (err) { showToast('Error: ' + err.message, 'error'); }
+  }
+
+  loadDetail();
+</script>
+{% endblock %}

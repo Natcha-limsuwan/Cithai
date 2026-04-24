@@ -22,6 +22,8 @@ class Song(models.Model):
     creation_date = models.DateTimeField(auto_now_add=True)
     is_shared     = models.BooleanField(default=False)  # C-3
 
+    audio_url  = models.URLField(null=True, blank=True)  # A-7: external storage
+
     status     = models.CharField(max_length=20, choices=GenerationStatus.choices, default=GenerationStatus.PENDING)
     mood       = models.CharField(max_length=20, choices=Mood.choices)
     genre      = models.CharField(max_length=20, choices=Genre.choices)

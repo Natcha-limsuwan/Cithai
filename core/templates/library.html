@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block title %}My Songs – Cithai{% endblock %}
+
+{% block body %}
+<nav class="nav">
+  <a href="/library/" class="nav-logo"><span>🎵</span> Cithai</a>
+  <div class="nav-actions">
+    <a href="/libraries/" class="btn btn-ghost btn-sm">Libraries</a>
+    <a href="/create/"    class="btn btn-ghost btn-sm">+ New Song</a>
+    <span class="nav-user" id="nav-user-name">…</span>
+    <button class="btn btn-ghost btn-sm" onclick="auth.logout()">Sign Out</button>
+  </div>
+</nav>
+
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">My Songs</h1>
+      <p class="page-subtitle">All your AI-generated music in one place</p>
+    </div>
+    <a href="/create/" class="btn btn-primary">🎵 Create New Song</a>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat-item">
+      <span class="stat-value" id="stat-total">—</span>
+      <span class="stat-label">Total Songs</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-value" id="stat-complete">—</span>
+      <span class="stat-label">Complete</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-value" id="stat-processing">—</span>
+      <span class="stat-label">In Progress</span>
+    </div>
+  </div>
+
+  <div id="songs-grid" class="songs-grid"></div>
+</div>
+
+<!-- Add to Library Modal -->
+<div id="lib-modal" class="modal-overlay" onclick="closeLibModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Add to Library</span>
+      <button class="modal-close" onclick="closeLibModal()">✕</button>
+    </div>
+    <div class="modal-body" id="lib-modal-body"></div>
+    <div class="modal-footer">
+      <a href="/libraries/" class="btn btn-secondary btn-sm">Manage Libraries</a>
+      <button class="btn btn-primary btn-sm" id="lib-modal-save" onclick="saveLibraryChanges()">Save</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  if (!auth.require()) { /* redirected */ }
+  document.getElementById('nav-user-name').textContent = auth.user?.name || '';
+
+  let refreshTimer  = null;
+  let modalSongId   = null;
+  let userLibraries = [];
+  let initialChecked = new Set();
+
+  async function loadSongs() {
+    clearTimeout(refreshTimer);
+    const grid = document.getElementById('songs-grid');
+    grid.innerHTML = `<div class="loading-overlay" style="grid-column:1/-1">
+      <span class="loading-spinner" style="border-color:rgba(70,130,180,.3);border-top-color:var(--primary);"></span>
+      Loading…</div>`;
+
+    try {
+      const [songs, libs] = await Promise.all([api.songs.list(), api.libraries.list()]);
+      const mine = songs.filter(s => s.user === auth.user.user_id);
+      userLibraries = libs.filter(l => l.user === auth.user.user_id);
+
+      document.getElementById('stat-total').textContent      = mine.length;
+      document.getElementById('stat-complete').textContent   = mine.filter(s => s.status === 'Complete').length;
+      document.getElementById('stat-processing').textContent = mine.filter(s => ['Processing','Pending'].includes(s.status)).length;
+
+      if (mine.length === 0) {
+        grid.innerHTML = `
+          <div class="empty-state" style="grid-column:1/-1">
+            <div class="empty-state-icon">🎵</div>
+            <div class="empty-state-title">No songs yet</div>
+            <div class="empty-state-text">Create your first AI-generated song to get started!</div>
+            <a href="/create/" class="btn btn-primary btn-lg">Create a Song</a>
+          </div>`;
+        return;
+      }
+
+      mine.sort((a, b) => new Date(b.creation_date) - new Date(a.creation_date));
+
+      grid.innerHTML = mine.map(song => {
+        // Which libraries contain this song?
+        const inLibs = userLibraries.filter(l => (l.songs || []).includes(song.song_id));
+        const libLabel = inLibs.length ? `<span class="tag tag-voice" style="font-size:.68rem;" title="In: ${inLibs.map(l=>l.name).join(', ')}">${inLibs.length} librar${inLibs.length===1?'y':'ies'}</span>` : '';
+        return `
+          <div class="song-card" onclick="location.href='/songs/${song.song_id}/'">
+            <div class="song-card-top">
+              <div class="song-title">${escHtml(song.title)}</div>
+              ${statusBadge(song.status)}
+            </div>
+            <div class="song-tags">
+              <span class="tag tag-mood">${escHtml(song.mood)}</span>
+              <span class="tag tag-genre">${escHtml(song.genre)}</span>
+              <span class="tag tag-occasion">${escHtml(song.occasion)}</span>
+              <span class="tag tag-voice">${escHtml(song.voice_type)}</span>
+            </div>
+            <div class="song-meta">
+              <span>${formatDate(song.creation_date)}</span>
+              <span>${song.duration ? formatDuration(song.duration) : ''}</span>
+            </div>
+            <div class="song-actions">
+              ${libLabel}
+              ${song.is_shared ? '<span class="tag tag-voice" style="font-size:.68rem;">🔗 Shared</span>' : ''}
+              <button class="btn btn-sm btn-secondary" onclick="openLibModal(event,${song.song_id})">Add to Library</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteSong(event,${song.song_id})">Delete</button>
+            </div>
+          </div>`;
+      }).join('');
+
+      const hasActive = mine.some(s => ['Processing','Pending'].includes(s.status));
+      if (hasActive) refreshTimer = setTimeout(loadSongs, 5000);
+
+    } catch (err) {
+      grid.innerHTML = `<div class="alert alert-error show" style="grid-column:1/-1">Failed to load songs: ${escHtml(err.message)}</div>`;
+    }
+  }
+
+  async function deleteSong(e, songId) {
+    e.stopPropagation();
+    if (!confirm('Delete this song? This cannot be undone.')) return;
+    try {
+      await api.songs.delete(songId);
+      showToast('Song deleted', 'success');
+      loadSongs();
+    } catch (err) { showToast('Delete failed: ' + err.message, 'error'); }
+  }
+
+  // ── Library Modal ─────────────────────────────────────────────
+  function openLibModal(e, songId) {
+    e.stopPropagation();
+    modalSongId = songId;
+
+    if (userLibraries.length === 0) {
+      document.getElementById('lib-modal-body').innerHTML =
+        `<div class="modal-empty">You don't have any libraries yet.<br>
+         <a href="/libraries/" style="color:var(--primary);font-weight:600;">Create one here →</a></div>`;
+      document.getElementById('lib-modal-save').style.display = 'none';
+    } else {
+      initialChecked = new Set(userLibraries.filter(l => (l.songs||[]).includes(songId)).map(l => l.library_id));
+      document.getElementById('lib-modal-body').innerHTML = userLibraries.map(lib => `
+        <label class="library-check-item">
+          <input type="checkbox" id="lib-cb-${lib.library_id}" ${initialChecked.has(lib.library_id) ? 'checked' : ''}>
+          <div>
+            <div class="library-check-name">📁 ${escHtml(lib.name)}</div>
+            ${lib.description ? `<div style="font-size:.75rem;color:var(--text-light);">${escHtml(lib.description)}</div>` : ''}
+          </div>
+          <span class="library-check-count">${lib.song_count} song${lib.song_count!==1?'s':''}</span>
+        </label>
+      `).join('');
+      document.getElementById('lib-modal-save').style.display = '';
+    }
+
+    document.getElementById('lib-modal').classList.add('open');
+  }
+
+  function closeLibModal(e) {
+    if (e && e.target !== document.getElementById('lib-modal')) return;
+    document.getElementById('lib-modal').classList.remove('open');
+  }
+
+  async function saveLibraryChanges() {
+    const btn = document.getElementById('lib-modal-save');
+    btn.disabled = true; btn.textContent = 'Saving…';
+
+    try {
+      for (const lib of userLibraries) {
+        const cb = document.getElementById(`lib-cb-${lib.library_id}`);
+        if (!cb) continue;
+        const wasIn = initialChecked.has(lib.library_id);
+        const isNow = cb.checked;
+        if (!wasIn && isNow) await api.libraries.addSong(lib.library_id, modalSongId);
+        if (wasIn && !isNow) await api.libraries.removeSong(lib.library_id, modalSongId);
+      }
+      showToast('Libraries updated!', 'success');
+      document.getElementById('lib-modal').classList.remove('open');
+      loadSongs();
+    } catch (err) {
+      showToast('Error: ' + err.message, 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Save';
+    }
+  }
+
+  loadSongs();
+</script>
+{% endblock %}

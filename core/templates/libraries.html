@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Libraries – Cithai{% endblock %}
+
+{% block body %}
+<nav class="nav">
+  <a href="/library/" class="nav-logo"><span>🎵</span> Cithai</a>
+  <div class="nav-actions">
+    <a href="/libraries/" class="btn btn-ghost btn-sm" style="background:rgba(255,255,255,0.18);">Libraries</a>
+    <a href="/library/"   class="btn btn-ghost btn-sm">🎵 Songs</a>
+    <a href="/create/"    class="btn btn-ghost btn-sm">+ New Song</a>
+    <span class="nav-user" id="nav-user-name">…</span>
+    <button class="btn btn-ghost btn-sm" onclick="auth.logout()">Sign Out</button>
+  </div>
+</nav>
+
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">My Libraries</h1>
+      <p class="page-subtitle">Organize your songs into collections</p>
+    </div>
+    <button class="btn btn-primary" id="toggle-create-btn" onclick="toggleCreateForm()">+ New Library</button>
+  </div>
+
+  <!-- Inline create form -->
+  <div id="create-form-panel" class="create-library-form">
+    <div class="section-title" style="margin-bottom:.9rem;">✨ Create New Library</div>
+    <div class="create-library-row">
+      <div class="form-group" style="flex:1;min-width:180px;margin-bottom:0;">
+        <label class="form-label" for="lib-name">Library Name *</label>
+        <input id="lib-name" type="text" class="form-control" placeholder="e.g. Workout Mix" maxlength="255">
+      </div>
+      <div class="form-group" style="flex:2;min-width:200px;margin-bottom:0;">
+        <label class="form-label" for="lib-desc">Description (optional)</label>
+        <input id="lib-desc" type="text" class="form-control" placeholder="e.g. High-energy tracks for the gym" maxlength="500">
+      </div>
+      <div style="display:flex;gap:.5rem;align-self:flex-end;padding-bottom:0;">
+        <button class="btn btn-primary" onclick="createLibrary()">Create</button>
+        <button class="btn btn-secondary" onclick="toggleCreateForm()">Cancel</button>
+      </div>
+    </div>
+    <div id="create-error" class="alert alert-error" style="margin-top:.75rem;"></div>
+  </div>
+
+  <div id="libraries-grid" class="libraries-grid">
+    <div class="loading-overlay" style="grid-column:1/-1">
+      <span class="loading-spinner" style="border-color:rgba(70,130,180,.3);border-top-color:var(--primary);"></span>
+      Loading libraries…
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  if (!auth.require()) { /* redirected */ }
+  document.getElementById('nav-user-name').textContent = auth.user?.name || '';
+
+  async function loadLibraries() {
+    const grid = document.getElementById('libraries-grid');
+    try {
+      const libs = await api.libraries.list();
+      const mine = libs.filter(l => l.user === auth.user.user_id);
+
+      if (mine.length === 0) {
+        grid.innerHTML = `
+          <div class="empty-state" style="grid-column:1/-1">
+            <div class="empty-state-icon"></div>
+            <div class="empty-state-title">No libraries yet</div>
+            <div class="empty-state-text">Create a library to start organising your songs</div>
+            <button class="btn btn-primary btn-lg" onclick="toggleCreateForm()">+ Create Library</button>
+          </div>`;
+        return;
+      }
+
+      mine.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+      grid.innerHTML = mine.map(lib => `
+        <div class="library-card" onclick="location.href='/libraries/${lib.library_id}/'">
+          <div class="library-card-name">📁 ${escHtml(lib.name)}</div>
+          ${lib.description ? `<div class="library-card-desc">${escHtml(lib.description)}</div>` : ''}
+          <div class="library-card-meta">
+            <span class="library-card-count">${lib.song_count} song${lib.song_count !== 1 ? 's' : ''}</span>
+            <span class="library-card-date">${formatDate(lib.created_at)}</span>
+          </div>
+        </div>
+      `).join('');
+    } catch (err) {
+      grid.innerHTML = `<div class="alert alert-error show" style="grid-column:1/-1">Failed to load: ${escHtml(err.message)}</div>`;
+    }
+  }
+
+  function toggleCreateForm() {
+    const panel = document.getElementById('create-form-panel');
+    const isOpen = panel.classList.toggle('show');
+    document.getElementById('toggle-create-btn').textContent = isOpen ? '✕ Cancel' : '+ New Library';
+    if (isOpen) document.getElementById('lib-name').focus();
+  }
+
+  async function createLibrary() {
+    const name = document.getElementById('lib-name').value.trim();
+    const desc = document.getElementById('lib-desc').value.trim();
+    const errEl = document.getElementById('create-error');
+    errEl.className = 'alert alert-error';
+
+    if (!name) {
+      errEl.textContent = 'Library name is required.';
+      errEl.classList.add('show');
+      return;
+    }
+
+    try {
+      await api.libraries.create({ user: auth.user.user_id, name, description: desc || null });
+      showToast('Library created!', 'success');
+      document.getElementById('lib-name').value = '';
+      document.getElementById('lib-desc').value = '';
+      toggleCreateForm();
+      loadLibraries();
+    } catch (err) {
+      errEl.textContent = 'Error: ' + err.message;
+      errEl.classList.add('show');
+    }
+  }
+
+  // Allow Enter key in name field
+  document.getElementById('lib-name').addEventListener('keydown', e => {
+    if (e.key === 'Enter') createLibrary();
+  });
+
+  loadLibraries();
+</script>
+{% endblock %}

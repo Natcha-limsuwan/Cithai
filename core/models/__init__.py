@@ -3,6 +3,7 @@ from .user import User, UserManager
 from .song import Song
 from .music_generation_request import MusicGenerationRequest
 from .share_link import ShareLink
+from .library import Library
 
 __all__ = [
     "Mood", "Genre", "Occasion", "VoiceType", "GenerationStatus",
@@ -10,4 +11,5 @@ __all__ = [
     "Song",
     "MusicGenerationRequest",
     "ShareLink",
+    "Library",
 ]

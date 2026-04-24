@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User, Song, MusicGenerationRequest, ShareLink
+from .models import User, Song, MusicGenerationRequest, ShareLink, Library
 
 
 @admin.register(User)
@@ -44,14 +44,18 @@ class SongAdmin(admin.ModelAdmin):
 
 @admin.register(MusicGenerationRequest)
 class MusicGenerationRequestAdmin(admin.ModelAdmin):
-    list_display   = ("request_id", "title", "user", "song", "is_retry", "submitted_at")
-    list_filter    = ("is_retry", "genre", "mood", "occasion", "voice_type")
+    list_display   = (
+        "request_id", "title", "user", "song", "generation_provider",
+        "provider_task_id", "is_retry", "submitted_at"
+    )
+    list_filter    = ("is_retry", "generation_provider", "genre", "mood", "occasion", "voice_type")
     search_fields  = ("title", "user__email")
-    readonly_fields = ("submitted_at",)
+    readonly_fields = ("submitted_at", "generation_provider", "provider_task_id", "provider_status_message")
 
     fieldsets = (
         ("Identification", {"fields": ("user", "song", "is_retry")}),
         ("Input Data",     {"fields": ("title", "mood", "genre", "occasion", "voice_type", "custom_lyrics")}),
+        ("Provider",       {"fields": ("generation_provider", "provider_task_id", "provider_status_message")}),
         ("Timestamps",     {"fields": ("submitted_at",)}),
     )
 
@@ -62,3 +66,15 @@ class ShareLinkAdmin(admin.ModelAdmin):
     list_filter    = ("is_active",)
     search_fields  = ("song__title", "token")
     readonly_fields = ("token", "created_at")
+
+
+@admin.register(Library)
+class LibraryAdmin(admin.ModelAdmin):
+    list_display   = ("library_id", "name", "user", "song_count", "created_at")
+    search_fields  = ("name", "user__email")
+    readonly_fields = ("created_at",)
+    filter_horizontal = ("songs",)
+
+    def song_count(self, obj):
+        return obj.songs.count()
+    song_count.short_description = "Songs"

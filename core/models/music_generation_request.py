@@ -23,6 +23,9 @@ class MusicGenerationRequest(models.Model):
 
     submitted_at  = models.DateTimeField(auto_now_add=True)
     is_retry      = models.BooleanField(default=False)
+    generation_provider = models.CharField(max_length=20, default="mock")
+    provider_task_id = models.CharField(max_length=255, blank=True, default="")
+    provider_status_message = models.CharField(max_length=255, blank=True, default="")
 
     class Meta:
         app_label = "core"
