@@ -124,3 +124,78 @@ function escHtml(str) {
   d.appendChild(document.createTextNode(String(str || '')));
   return d.innerHTML;
 }
+
+function getSongDownloadName(song) {
+  const base = String(song?.title || 'song')
+    .trim()
+    .replace(/[^a-z0-9]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase() || 'song';
+
+  let extension = 'mp3';
+  try {
+    const url = new URL(song?.audio_url || '', window.location.origin);
+    const match = url.pathname.match(/\.([a-z0-9]+)$/i);
+    if (match) extension = match[1].toLowerCase();
+  } catch (_) {
+    // Keep the default extension when the URL cannot be parsed.
+  }
+
+  return `${base}.${extension}`;
+}
+
+function getSongDownloadUrl(song) {
+  return `/api/songs/${song.song_id}/download/`;
+}
+
+const songDownloadCatalog = new Map();
+
+function registerSongForDownload(song) {
+  if (!song?.song_id) return;
+  songDownloadCatalog.set(Number(song.song_id), {
+    song_id: Number(song.song_id),
+    title: song.title,
+    audio_url: song.audio_url,
+  });
+}
+
+function downloadSongById(event, songId) {
+  downloadSong(event, songDownloadCatalog.get(Number(songId)));
+}
+
+function ensureDownloadFrame() {
+  let frame = document.getElementById('download-frame');
+  if (frame) return frame;
+
+  frame = document.createElement('iframe');
+  frame.id = 'download-frame';
+  frame.name = 'download-frame';
+  frame.style.display = 'none';
+  document.body.appendChild(frame);
+  return frame;
+}
+
+function downloadSong(event, song) {
+  if (event) event.stopPropagation();
+  if (!song?.audio_url) {
+    showToast('No audio file available to download', 'error');
+    return;
+  }
+
+  ensureDownloadFrame();
+
+  const link = document.createElement('a');
+  link.href = getSongDownloadUrl(song);
+  link.download = getSongDownloadName(song);
+  link.target = 'download-frame';
+  link.rel = 'noopener';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+function songDownloadButton(song, label = 'Download') {
+  if (!song?.audio_url) return '';
+  registerSongForDownload(song);
+  return `<button class="btn btn-sm btn-secondary" onclick="downloadSongById(event, ${Number(song.song_id)})">${escHtml(label)}</button>`;
+}

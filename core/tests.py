@@ -1,4 +1,5 @@
-from unittest.mock import patch
+from email.message import Message
+from unittest.mock import MagicMock, patch
 
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
@@ -123,3 +124,79 @@ class MusicGenerationStrategyTests(TestCase):
         self.assertEqual(generation_request.song.status, GenerationStatus.PROCESSING)
         self.assertEqual(generation_request.song.title, "Festival Night")
         self.assertEqual(generation_request.song.audio_url, "https://cdn.example.com/festival-night-preview.mp3")
+
+    @patch("core.views.urlopen")
+    def test_song_download_proxies_audio_as_attachment(self, mock_urlopen):
+        song = Song.objects.create(
+            user=self.user,
+            title="Festival Night Final",
+            custom_lyrics="",
+            occasion="Custom",
+            genre="Pop",
+            voice_type="Female",
+            mood="Energetic",
+            status=GenerationStatus.COMPLETE,
+            audio_url="https://cdn.example.com/festival-night.mp3",
+        )
+
+        headers = Message()
+        headers["Content-Type"] = "audio/mpeg"
+        remote_file = MagicMock()
+        remote_file.read.side_effect = [b"audio-bytes", b""]
+        remote_file.headers = headers
+        mock_urlopen.return_value = remote_file
+
+        client = APIClient()
+        response = client.get(f"/api/songs/{song.song_id}/download/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "audio/mpeg")
+        self.assertIn('attachment; filename="festival-night-final.mp3"', response["Content-Disposition"])
+        self.assertEqual(b"".join(response.streaming_content), b"audio-bytes")
+
+    def test_song_download_returns_404_without_audio_url(self):
+        song = Song.objects.create(
+            user=self.user,
+            title="Silent Draft",
+            custom_lyrics="",
+            occasion="Custom",
+            genre="Pop",
+            voice_type="Female",
+            mood="Energetic",
+            status=GenerationStatus.PENDING,
+        )
+
+        client = APIClient()
+        response = client.get(f"/api/songs/{song.song_id}/download/")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["detail"], "No audio file available for this song.")
+
+    @patch("core.views.urlopen")
+    def test_song_download_sends_user_agent_header(self, mock_urlopen):
+        song = Song.objects.create(
+            user=self.user,
+            title="Header Check",
+            custom_lyrics="",
+            occasion="Custom",
+            genre="Pop",
+            voice_type="Female",
+            mood="Energetic",
+            status=GenerationStatus.COMPLETE,
+            audio_url="https://cdn.example.com/header-check.mp3",
+        )
+
+        headers = Message()
+        headers["Content-Type"] = "audio/mpeg"
+        remote_file = MagicMock()
+        remote_file.read.side_effect = [b"audio-bytes", b""]
+        remote_file.headers = headers
+        mock_urlopen.return_value = remote_file
+
+        client = APIClient()
+        response = client.get(f"/api/songs/{song.song_id}/download/")
+
+        self.assertEqual(response.status_code, 200)
+        request_arg = mock_urlopen.call_args.args[0]
+        self.assertEqual(request_arg.full_url, "https://cdn.example.com/header-check.mp3")
+        self.assertEqual(request_arg.get_header("User-agent"), "CithaiDownloader/1.0")

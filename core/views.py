@@ -1,7 +1,14 @@
-from rest_framework import status, viewsets
+import mimetypes
+from os.path import basename
+from urllib.error import HTTPError, URLError
+from urllib.parse import unquote, urlparse
+from urllib.request import Request, urlopen
+
+from django.http import FileResponse
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework import status, viewsets
 from .models import User, Song, MusicGenerationRequest, ShareLink, Library
 from .serializers import (
     UserSerializer, SongSerializer,
@@ -28,6 +35,54 @@ class SongViewSet(viewsets.ModelViewSet):
     queryset         = Song.objects.select_related("user").all()
     serializer_class = SongSerializer
     permission_classes = [AllowAny]
+
+    @action(detail=True, methods=["get"])
+    def download(self, request, pk=None):
+        song = self.get_object()
+        if not song.audio_url:
+            return Response(
+                {"detail": "No audio file available for this song."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        filename = self._build_download_filename(song)
+
+        try:
+            remote_request = Request(
+                song.audio_url,
+                headers={"User-Agent": "CithaiDownloader/1.0"},
+            )
+            remote_file = urlopen(remote_request, timeout=30)
+        except (HTTPError, URLError, ValueError):
+            return Response(
+                {"detail": "Could not fetch the audio file for download."},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        content_type = remote_file.headers.get_content_type()
+        if not content_type or content_type == "application/octet-stream":
+            guessed_type, _ = mimetypes.guess_type(filename)
+            content_type = guessed_type or "application/octet-stream"
+
+        return FileResponse(
+            remote_file,
+            as_attachment=True,
+            filename=filename,
+            content_type=content_type,
+        )
+
+    def _build_download_filename(self, song):
+        slug = "".join(
+            c.lower() if c.isalnum() else "-"
+            for c in (song.title or "song").strip()
+        ).strip("-")
+        while "--" in slug:
+            slug = slug.replace("--", "-")
+        slug = slug or "song"
+
+        path = urlparse(song.audio_url).path
+        extension = basename(unquote(path)).rsplit(".", 1)[-1].lower() if "." in basename(unquote(path)) else "mp3"
+        return f"{slug}.{extension}"
 
 
 class MusicGenerationRequestViewSet(viewsets.ModelViewSet):

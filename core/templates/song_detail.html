@@ -111,13 +111,14 @@
           <button class="player-btn player-btn-sm" onclick="skip(-10)" title="Back 10s">-10s</button>
           <button id="play-btn" class="player-btn player-btn-main" onclick="togglePlay()">▶</button>
           <button class="player-btn player-btn-sm" onclick="skip(10)" title="Forward 10s">+10s</button>
+          ${songData.audio_url ? songDownloadButton(songData, 'Download Song') : ''}
         </div>
         ${!songData.audio_url ? '<div style="text-align:center;font-size:.75rem;opacity:.65;margin-top:.5rem;">No audio file available for this song</div>' : ''}
       </div>` : ''}
 
       <!-- METADATA -->
       <div class="section">
-        <div class="section-title">📋 Song Details</div>
+        <div class="section-title">Song Details</div>
         <div class="meta-grid">
           <div class="meta-item"><div class="meta-label">Mood</div><div class="meta-value">${escHtml(songData.mood)}</div></div>
           <div class="meta-item"><div class="meta-label">Genre</div><div class="meta-value">${escHtml(songData.genre)}</div></div>
@@ -136,7 +137,7 @@
       <!-- SHARE SECTION (Complete only) -->
       ${isComplete ? `
       <div class="section">
-        <div class="section-title">🔗 Share This Song</div>
+        <div class="section-title">Share This Song</div>
         <div class="share-card">
           <div class="share-toggle-row">
             <label class="toggle">
@@ -155,7 +156,7 @@
       <!-- GENERATION INFO -->
       ${requestData ? `
       <div class="section">
-        <div class="section-title">⚙️ Generation Info</div>
+        <div class="section-title">Generation Info</div>
         <div class="meta-grid">
           <div class="meta-item"><div class="meta-label">Provider</div><div class="meta-value">${escHtml(requestData.generation_provider)}</div></div>
           <div class="meta-item"><div class="meta-label">Submitted</div><div class="meta-value">${formatDate(requestData.submitted_at)}</div></div>
@@ -165,7 +166,7 @@
 
       <!-- DELETE -->
       <div style="display:flex;justify-content:flex-end;padding-bottom:2rem;">
-        <button class="btn btn-danger" onclick="deleteSong()">🗑 Delete Song</button>
+        <button class="btn btn-danger" onclick="deleteSong()">Delete Song</button>
       </div>
     `;
 

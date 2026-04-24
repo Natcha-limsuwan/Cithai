@@ -117,6 +117,7 @@
             <div class="song-actions">
               ${libLabel}
               ${song.is_shared ? '<span class="tag tag-voice" style="font-size:.68rem;">🔗 Shared</span>' : ''}
+              ${songDownloadButton(song)}
               <button class="btn btn-sm btn-secondary" onclick="openLibModal(event,${song.song_id})">Add to Library</button>
               <button class="btn btn-sm btn-danger" onclick="deleteSong(event,${song.song_id})">Delete</button>
             </div>

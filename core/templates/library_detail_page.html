@@ -6,7 +6,7 @@
   <a href="/library/" class="nav-logo"><span>🎵</span> Cithai</a>
   <div class="nav-actions">
     <a href="/libraries/" class="btn btn-ghost btn-sm">Libraries</a>
-    <a href="/library/"   class="btn btn-ghost btn-sm">🎵 Songs</a>
+    <a href="/library/"   class="btn btn-ghost btn-sm">Songs</a>
     <span class="nav-user" id="nav-user-name">…</span>
     <button class="btn btn-ghost btn-sm" onclick="auth.logout()">Sign Out</button>
   </div>
@@ -118,6 +118,7 @@
                 <span>${song.duration ? formatDuration(song.duration) : ''}</span>
               </div>
               <div class="song-actions">
+                ${songDownloadButton(song)}
                 <button class="btn btn-sm btn-secondary" onclick="removeSong(event,${song.song_id})">Remove</button>
               </div>
             </div>
