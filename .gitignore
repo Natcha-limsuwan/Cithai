@@ -91,6 +91,8 @@ celerybeat-schedule
 .env
 .env.*
 *.env
+# but always track the example template
+!.env.example
 .venv
 env/
 venv/

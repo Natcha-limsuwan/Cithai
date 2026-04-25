@@ -1,8 +1,13 @@
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-SECRET_KEY = "django-insecure-cithai-dev-key-change-in-production"
+
+# Load .env file if it exists (dev convenience — never commit .env to git)
+load_dotenv(BASE_DIR / ".env")
+
+SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-cithai-dev-key-change-in-production")
 DEBUG = True
 ALLOWED_HOSTS = ["*"]
 

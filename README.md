@@ -24,19 +24,45 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 4. Apply migrations
+### 4. Configure environment variables
+
+Copy the provided template and fill in your values:
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` and set the variables you need. For local development with the mock
+strategy you only need the defaults — no API key is required:
+
+```
+GENERATOR_STRATEGY=mock
+```
+
+To use the real Suno API, set:
+
+```
+GENERATOR_STRATEGY=suno
+SUNO_API_KEY=your_key_here
+```
+
+> **Important:** `.env` is listed in `.gitignore`. Never commit it to the repository.
+> `.env.example` (committed) shows every variable and its purpose — it contains
+> no real secrets.
+
+### 5. Apply migrations
 
 ```bash
 python3 manage.py migrate
 ```
 
-### 5. Seed demo data
+### 6. Seed demo data
 
 ```bash
 python3 manage.py seed_data
 ```
 
-### 6. Create an admin superuser
+### 8. Create an admin superuser
 
 ```bash
 python3 manage.py createsuperuser
@@ -45,7 +71,7 @@ python3 manage.py createsuperuser
 When prompted for a password you can leave it blank (Google OAuth is used in
 production — no passwords are stored).
 
-### 7. Run the development server
+### 9. Run the development server
 
 ```bash
 python3 manage.py runserver
@@ -103,6 +129,10 @@ Open http://127.0.0.1:8000/
 
 ## Class Diagram
 
+The diagram is organized by the **MVT (Model–View–Template)** layers that Django uses.
+
+### Model Layer — Domain Entities
+
 ```mermaid
 classDiagram
     class User {
@@ -122,9 +152,11 @@ classDiagram
         +VoiceType voice_type
         +GenerationStatus status
         +int duration
+        +str audio_url
         +str custom_lyrics
         +bool is_shared
         +datetime creation_date
+        +save()
     }
 
     class MusicGenerationRequest {
@@ -147,6 +179,7 @@ classDiagram
         +str token
         +bool is_active
         +datetime created_at
+        +save()
     }
 
     class Library {
@@ -207,6 +240,123 @@ classDiagram
     MusicGenerationRequest "1" --> "0..1" Song : produces
     Song "1" --> "0..1" ShareLink : has
     Library "0..*" --> "0..*" Song : contains
+```
+
+### View Layer — API & Frontend Views
+
+```mermaid
+classDiagram
+    class UserViewSet {
+        <<View>>
+        +queryset
+        +serializer_class
+        +list()
+        +retrieve()
+        +create()
+        +update()
+        +destroy()
+    }
+
+    class SongViewSet {
+        <<View>>
+        +queryset
+        +serializer_class
+        +list()
+        +retrieve()
+        +create()
+        +update()
+        +destroy()
+    }
+
+    class MusicGenerationRequestViewSet {
+        <<View>>
+        +queryset
+        +serializer_class
+        +create()
+        +refresh_generation()
+    }
+
+    class ShareLinkViewSet {
+        <<View>>
+        +queryset
+        +serializer_class
+        +list()
+        +create()
+        +update()
+    }
+
+    class LibraryViewSet {
+        <<View>>
+        +queryset
+        +serializer_class
+        +list()
+        +create()
+        +update()
+        +destroy()
+        +add_song()
+        +remove_song()
+    }
+
+    class FrontendViews {
+        <<View>>
+        +index()
+        +library()
+        +create_song()
+        +song_detail()
+        +libraries_list()
+        +library_detail_page()
+    }
+
+    MusicGenerationRequestViewSet --> MusicGenerationService : uses
+    SongViewSet --> Song : manages
+    LibraryViewSet --> Library : manages
+```
+
+### Service Layer — Strategy Pattern
+
+```mermaid
+classDiagram
+    class MusicGenerationStrategy {
+        <<abstract>>
+        +provider_name: str
+        +generate(generation_request)*
+        +refresh(generation_request)*
+    }
+
+    class MockMusicGenerationStrategy {
+        +provider_name = "mock"
+        +generate(generation_request)
+        +refresh(generation_request)
+    }
+
+    class SunoMusicGenerationStrategy {
+        +provider_name = "suno"
+        +generate(generation_request)
+        +refresh(generation_request)
+    }
+
+    class MusicGenerationService {
+        +strategy: MusicGenerationStrategy
+        +submit_request(generation_request)
+        +refresh_request(generation_request)
+        -_build_or_get_song(generation_request, result)
+    }
+
+    class GenerationResult {
+        <<dataclass>>
+        +status: str
+        +provider_name: str
+        +provider_task_id: str
+        +duration: int
+        +audio_url: str
+        +title: str
+        +error_message: str
+    }
+
+    MusicGenerationStrategy <|-- MockMusicGenerationStrategy : inherits
+    MusicGenerationStrategy <|-- SunoMusicGenerationStrategy : inherits
+    MusicGenerationService --> MusicGenerationStrategy : delegates to
+    MusicGenerationStrategy --> GenerationResult : returns
 ```
 
 ---
