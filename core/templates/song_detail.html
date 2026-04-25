@@ -33,8 +33,8 @@
   let songData    = null;
   let shareData   = null;
   let requestData = null;
-  let isPlaying   = false;
-  let position    = 0;   // seconds elapsed
+  let isPlaying    = false;
+  let position     = 0;
   let refreshTimer = null;
 
   async function loadDetail() {
@@ -253,9 +253,10 @@
 
   // ── Audio Player ──────────────────────────────────────────────
   function audio() { return document.getElementById('audio-el'); }
+
   function playerTotal() {
     const a = audio();
-    return (a && a.duration && isFinite(a.duration)) ? a.duration : (songData?.duration || 180);
+    return (a && isFinite(a.duration) && a.duration > 0) ? a.duration : (songData?.duration || 180);
   }
 
   function updateSlider(secs) {
@@ -270,25 +271,32 @@
     if (timeEl) timeEl.textContent = formatDuration(Math.floor(secs));
   }
 
+  function setPlayBtn(playing) {
+    isPlaying = playing;
+    const btn = document.getElementById('play-btn');
+    if (btn) btn.textContent = playing ? '⏸' : '▶';
+  }
+
   function initAudioListeners() {
     const a = audio();
     if (!a) return;
-    a.addEventListener('timeupdate', () => {
-      if (!isPlaying) return;
-      position = a.currentTime;
-      updateSlider(position);
-    });
+
+    a.addEventListener('play',        () => setPlayBtn(true));
+    a.addEventListener('pause',       () => setPlayBtn(false));
+    a.addEventListener('timeupdate',  () => { position = a.currentTime; updateSlider(position); });
     a.addEventListener('loadedmetadata', () => {
       const totalEl = document.getElementById('total-time');
       if (totalEl) totalEl.textContent = formatDuration(Math.floor(a.duration));
       updateSlider(0);
     });
     a.addEventListener('ended', () => {
-      isPlaying = false;
-      const btn = document.getElementById('play-btn');
-      if (btn) btn.textContent = '▶';
       position = 0;
+      a.currentTime = 0;
       updateSlider(0);
+    });
+    a.addEventListener('error', () => {
+      showToast('Audio failed to load', 'error');
+      setPlayBtn(false);
     });
   }
 
@@ -300,40 +308,21 @@
   }
 
   function skip(secs) {
-    const total = playerTotal();
-    position = Math.max(0, Math.min(position + secs, total));
-    updateSlider(position);
     const a = audio();
-    if (a) a.currentTime = position;
+    if (!a) return;
+    a.currentTime = Math.max(0, Math.min(a.currentTime + secs, playerTotal()));
   }
 
   function restartPlayer() {
-    isPlaying = false;
-    position = 0;
-    const btn = document.getElementById('play-btn');
-    if (btn) btn.textContent = '▶';
-    updateSlider(0);
     const a = audio();
     if (a) { a.pause(); a.currentTime = 0; }
   }
 
   function togglePlay() {
     const a = audio();
-    const btn = document.getElementById('play-btn');
-    if (!btn) return;
-    if (!a) {
-      showToast('No audio available for this song', 'error');
-      return;
-    }
-    isPlaying = !isPlaying;
-    btn.textContent = isPlaying ? '⏸' : '▶';
-    if (isPlaying) {
-      a.currentTime = position;
-      a.play().catch(err => {
-        showToast('Playback error: ' + err.message, 'error');
-        isPlaying = false;
-        btn.textContent = '▶';
-      });
+    if (!a) { showToast('No audio available for this song', 'error'); return; }
+    if (a.paused) {
+      a.play().catch(err => showToast('Playback error: ' + err.message, 'error'));
     } else {
       a.pause();
     }
