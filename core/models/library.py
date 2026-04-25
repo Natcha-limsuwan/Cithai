@@ -12,6 +12,7 @@ class Library(models.Model):
     created_at  = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        app_label = "core"
         ordering = ["-created_at"]
         verbose_name_plural = "libraries"
 

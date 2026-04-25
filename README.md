@@ -46,6 +46,22 @@ GENERATOR_STRATEGY=suno
 SUNO_API_KEY=your_key_here
 ```
 
+To enable **Google OAuth** (required for the "Sign in with Google" button):
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/) → create a project
+2. Navigate to **APIs & Services → Credentials → Create Credentials → OAuth 2.0 Client ID**
+3. Application type: **Web application**
+4. Add `http://127.0.0.1:8000/auth/google/callback/` under **Authorized redirect URIs**
+5. Copy the Client ID and Client Secret into `.env`:
+
+```
+GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-client-secret
+GOOGLE_REDIRECT_URI=http://127.0.0.1:8000/auth/google/callback/
+```
+
+> Without Google credentials, use the **"Dev login"** option on the sign-in page to log in locally.
+
 > **Important:** `.env` is listed in `.gitignore`. Never commit it to the repository.
 > `.env.example` (committed) shows every variable and its purpose — it contains
 > no real secrets.
@@ -62,7 +78,7 @@ python3 manage.py migrate
 python3 manage.py seed_data
 ```
 
-### 8. Create an admin superuser
+### 7. Create an admin superuser
 
 ```bash
 python3 manage.py createsuperuser
@@ -71,7 +87,7 @@ python3 manage.py createsuperuser
 When prompted for a password you can leave it blank (Google OAuth is used in
 production — no passwords are stored).
 
-### 9. Run the development server
+### 8. Run the development server
 
 ```bash
 python3 manage.py runserver
@@ -510,6 +526,7 @@ Cithai/
 │   ├── templates/
 │   │   ├── base.html           # Shared layout, loads CSS + cithai.js
 │   │   ├── index.html          # Login / landing page
+│   │   ├── oauth_success.html  # Post-OAuth redirect; passes user data to JS
 │   │   ├── library.html        # My Songs grid
 │   │   ├── create.html         # New song form
 │   │   ├── song_detail.html    # Song player + share + delete
@@ -521,6 +538,7 @@ Cithai/
 │   ├── serializers.py          # DRF serializers with constraint validation
 │   ├── views.py                # ModelViewSet API endpoints
 │   ├── frontend_views.py       # Thin views that render HTML templates
+│   ├── oauth_views.py          # Google OAuth login & callback handlers
 │   ├── admin.py                # Django Admin registration
 │   ├── tests.py                # Unit + integration tests
 │   └── management/

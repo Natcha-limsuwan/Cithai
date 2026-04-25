@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Signing in… – Cithai</title>
+  <style>
+    body { font-family: sans-serif; display: flex; align-items: center;
+           justify-content: center; min-height: 100vh; margin: 0;
+           background: #f0f6fb; color: #4682B4; }
+    p { font-size: 1.1rem; }
+  </style>
+</head>
+<body>
+  <p>🎵 Signing you in…</p>
+  <script>
+    try {
+      localStorage.setItem('cithai_user', '{{ user_data|escapejs }}');
+    } catch (e) {}
+    location.replace('/library/');
+  </script>
+  <noscript>
+    <p>JavaScript is required. <a href="/library/">Click here to continue.</a></p>
+  </noscript>
+</body>
+</html>

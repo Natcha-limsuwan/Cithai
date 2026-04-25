@@ -82,6 +82,11 @@ SUNO_API_BASE_URL = os.getenv("SUNO_API_BASE_URL", "https://api.sunoapi.org/api/
 SUNO_CALLBACK_URL = os.getenv("SUNO_CALLBACK_URL", "https://example.com/api/suno/callback")
 SUNO_MODEL = os.getenv("SUNO_MODEL", "V4_5ALL")
 
+# Google OAuth
+GOOGLE_CLIENT_ID     = os.getenv("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
+GOOGLE_REDIRECT_URI  = os.getenv("GOOGLE_REDIRECT_URI", "http://127.0.0.1:8000/auth/google/callback/")
+
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
